@@ -312,3 +312,352 @@ ListTile(
   },
 )
 ```
+
+# TUGAS 9
+
+### Jelaskan mengapa kita perlu membuat model untuk melakukan pengambilan ataupun pengiriman data JSON? Apakah akan terjadi error jika kita tidak membuat model terlebih dahulu?
+
+Model sangat penting dalam Flutter ketika bekerja dengan JSON karena:
+
+- Type Safety: Dart adalah bahasa yang type-safe. Model membantu memastikan data memiliki struktur dan tipe yang benar
+- Auto-completion: IDE dapat memberikan saran kode yang lebih baik
+- Error Prevention: Mengurangi runtime errors karena struktur data sudah didefinisikan
+- Code Maintenance: Lebih mudah memelihara dan mengubah kode
+
+```dart
+// Contoh tanpa model (rawan error):
+var data = jsonDecode(response.body);
+print(data['name']); // Bisa error jika 'name' tidak ada
+
+// Dengan model (lebih aman):
+class User {
+  final String name;
+  User({required this.name});
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(name: json['name']);
+  }
+}
+```
+
+### Jelaskan fungsi dari library http yang sudah kamu implementasikan pada tugas ini
+
+Library http menyediakan fungsi-fungsi untuk melakukan HTTP requests:
+
+- get(): Mengambil data dari server
+- post(): Mengirim data ke server
+- put(): Memperbarui data yang ada
+- delete(): Menghapus data
+- Handling headers dan cookies
+- Error handling untuk network requests
+
+```dart
+import 'package:http/http.dart' as http;
+
+// Contoh penggunaan
+Future<void> fetchData() async {
+  final response = await http.get(
+    Uri.parse('https://your-api.com/data'),
+    headers: {'Content-Type': 'application/json'},
+  );
+}
+```
+
+### Jelaskan fungsi dari CookieRequest dan jelaskan mengapa instance CookieRequest perlu untuk dibagikan ke semua komponen di aplikasi Flutter.
+
+- CookieRequest berfungsi untuk:
+
+  - Menyimpan dan mengelola session cookies
+  - Menjaga state autentikasi
+  - Mengirim cookies pada setiap request
+
+Perlu dibagikan ke semua komponen karena:
+
+- Memastikan konsistensi session di seluruh aplikasi
+- Menghindari multiple login
+- Efisiensi penggunaan memori
+  State management yang lebih baik
+
+```dart
+// Menggunakan Provider untuk berbagi instance
+void main() {
+  runApp(
+    Provider(
+      create: (context) => CookieRequest(),
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+### Jelaskan mekanisme pengiriman data mulai dari input hingga dapat ditampilkan pada Flutter.
+
+```dart
+// 1. Input data dari form
+class MyForm extends StatefulWidget {
+  final _formKey = GlobalKey<FormState>();
+  String _inputData = '';
+
+  // 2. Validasi dan persiapan data
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      // 3. Konversi ke JSON
+      final data = {'field': _inputData};
+
+      // 4. Kirim ke server
+      final response = await http.post(
+        Uri.parse('your-api-url'),
+        body: jsonEncode(data),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      // 5. Process response
+      if (response.statusCode == 200) {
+        // 6. Update UI
+        setState(() {
+          // Update state untuk menampilkan data
+        });
+      }
+    }
+  }
+}
+```
+
+### Jelaskan mekanisme autentikasi dari login, register, hingga logout. Mulai dari input data akun pada Flutter ke Django hingga selesainya proses autentikasi oleh Django dan tampilnya menu pada Flutter.
+
+```dart
+// Login Process
+class LoginPage extends StatefulWidget {
+  Future<void> login() async {
+    // 1. Input validation
+    if (_formKey.currentState!.validate()) {
+      // 2. Prepare login data
+      final data = {
+        'username': _usernameController.text,
+        'password': _passwordController.text,
+      };
+
+      // 3. Send to Django
+      final response = await http.post(
+        Uri.parse('${baseUrl}/auth/login/'),
+        body: jsonEncode(data),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      // 4. Process response
+      if (response.statusCode == 200) {
+        // 5. Save token/cookie
+        final cookieRequest = context.read<CookieRequest>();
+        await cookieRequest.saveToken(response.body);
+
+        // 6. Navigate to home
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
+      }
+    }
+  }
+}
+
+// Register Process
+// Mirip dengan login, tapi dengan endpoint yang berbeda
+// dan mungkin memerlukan data tambahan
+
+// Logout Process
+void logout() async {
+  final cookieRequest = context.read<CookieRequest>();
+
+  // 1. Send logout request to Django
+  final response = await http.post(
+    Uri.parse('${baseUrl}/auth/logout/'),
+    headers: {
+      'Authorization': 'Bearer ${cookieRequest.token}',
+    },
+  );
+
+  // 2. Clear local token/cookie
+  await cookieRequest.clearToken();
+
+  // 3. Navigate to login
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => LoginPage()),
+  );
+}
+```
+
+Di sisi Django:
+
+1. Menerima request login/register
+2. Memvalidasi credentials
+3. Membuat session/token
+4. Mengirim response ke Flutter
+5. Untuk logout, menghapus session/token
+
+Proses ini memastikan:
+
+- Keamanan data pengguna
+- Session management yang baik
+- Pengalaman pengguna yang mulus
+- Pemisahan concerns antara client dan server
+
+### Jelaskan bagaimana cara kamu mengimplementasikan checklist di atas secara step-by-step! (bukan hanya sekadar mengikuti tutorial).
+
+1. Mengimplementasikan Fitur Registrasi
+
+```dart
+// Membuat register.dart dengan form registrasi
+class RegisterPage extends StatefulWidget {
+// Menggunakan TextFormField untuk input username dan password
+// Implementasi validasi form
+// Mengirim data registrasi ke Django endpoint /auth/register/
+// Navigasi ke LoginPage setelah registrasi berhasil
+}
+```
+
+2. Membuat Halaman Login
+
+```dart
+// Implementasi di login.dart
+class LoginPage extends StatefulWidget {
+// Form login dengan username & password fields
+// Menggunakan CookieRequest untuk autentikasi
+// Navigasi ke HomePage jika login berhasil
+// Menampilkan error dialog jika gagal
+}
+```
+
+3. Integrasi Autentikasi Django-Flutter
+
+```dart
+// Di main.dart: Setup Provider untuk CookieRequest
+class MyApp extends StatelessWidget {
+@override
+Widget build(BuildContext context) {
+return Provider(
+create: (\_) {
+CookieRequest request = CookieRequest();
+return request;
+},
+child: MaterialApp(...)
+);
+}
+}
+```
+
+4. Model Kustom untuk JSON
+
+```dart
+// Di models/product.dart: Model untuk data produk
+class Product {
+String model;
+String pk;
+Fields fields;
+
+// Implementasi fromJson dan toJson
+factory Product.fromJson(Map<String, dynamic> json) => Product(
+model: json["model"],
+pk: json["pk"],
+fields: Fields.fromJson(json["fields"]),
+);
+}
+```
+
+5. Halaman Daftar Item (Endpoint JSON)
+
+```dart
+// Di list_product.dart
+class ProductPage extends StatefulWidget {
+Future<List<Product>> fetchProduct(CookieRequest request) async {
+// Fetch data dari Django endpoint
+final response = await request.get('http://127.0.0.1:8000/json/');
+// Parse JSON ke model Product
+List<Product> listProduct = [];
+for (var d in data) {
+listProduct.add(Product.fromJson(d));
+}
+return listProduct;
+}
+
+// Display menggunakan ListView.builder
+}
+```
+
+6. Form Tambah Item
+
+```dart
+// Di product_form.dart
+class ProductFormPage extends StatefulWidget {
+// Form fields untuk nama, harga, deskripsi, stok
+// Validasi input
+// Kirim data ke Django endpoint
+// Navigasi kembali ke daftar setelah berhasil
+}
+```
+
+7. Left Drawer untuk Navigasi
+
+```dart
+// Di left_drawer.dart
+class LeftDrawer extends StatelessWidget {
+// Menu items:
+// - Halaman Utama
+// - Tambah Produk
+// - Daftar Produk
+// Implementasi navigasi untuk setiap menu
+}
+```
+
+8. Implementasi Logout
+
+```dart
+// Di product.dart (ItemCard)
+if (item.name == "Logout") {
+final response = await request.logout("http://[URL]/auth/logout/");
+// Handle response
+// Navigasi ke LoginPage
+Navigator.pushReplacement(
+context,
+MaterialPageRoute(builder: (context) => const LoginPage()),
+);
+}
+```
+
+9. Filter Item Berdasarkan User
+
+```dart
+// Di Django views.py
+@csrf_exempt
+def get_products(request):
+products = Product.objects.filter(user=request.user)
+return JsonResponse([...], safe=False)
+```
+
+10. Bonus Item Detail
+
+```dart
+// Di list*product.dart
+ListView.builder(
+itemBuilder: (*, index) => InkWell(
+onTap: () => Navigator.push(
+context,
+MaterialPageRoute(
+builder: (context) => ProductDetailPage(product: snapshot.data![index])
+)
+),
+child: ProductCard(...)
+)
+)
+```
+
+Implementasi di atas mencakup:
+
+- Autentikasi pengguna (login/register/logout)
+- State management dengan Provider
+- CRUD operasi dengan Django backend
+- Routing dan navigasi
+- Form handling dan validasi
+- Model untuk JSON serialization/deserialization
+- UI components seperti drawer dan cards
+- Error handling dan loading states
